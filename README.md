@@ -15,6 +15,7 @@
 ### 效果
 
 用10美元1年的vps抓了10来天的效果</br>
+
 >>>mysql> select count(*) from proxy where type=2;</br>
 >>>+----------+</br>
 >>>| count(*) |</br>
@@ -29,7 +30,9 @@
 >>>|      320 |</br>
 >>>+----------+</br>
 >>>1 row in set (0.00 sec)</br>
+
 加上自己用其他方式抓的公开代理，基本可以保障每天800左右的可用代理</br>
+
 >>>mysql> select count(*) from proxy where status=1;</br>
 >>>+----------+</br>
 >>>| count(*) |</br>
