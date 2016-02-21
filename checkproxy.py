@@ -22,6 +22,7 @@ class checkProxy(threading.Thread):
     def run(self):
         while not self.queue.empty():
             iplist = self.queue.get()
+            self.queue.task_done()
             ip = iplist[0]
             port = int(iplist[1])
             self.check(ip,port)
@@ -31,27 +32,31 @@ class checkProxy(threading.Thread):
         proxy = 0
         https = 0
         speed = 0
-        try:
-            start = time.clock()
-            proxies = {"http":"http://%s:%s"%(ip,port),"https": "http://%s:%s"%(ip,port)}
-            r1 = requests.get("http://www.baidu.com/img/baidu_jgylogo1.gif", proxies=proxies,timeout=10)
-            if int(r1.headers['Content-Length']) == 708:
-                proxy =1
-                end = time.clock()
-                speed = str(end-start)[:4]
-                r2 = requests.get("https://www.baidu.com", proxies=proxies,timeout=10)
-                if int(r2.status_code) == 200:
-                    https=1
-        except Exception,e:
-            pass
-        self.queue.task_done()
-        if proxy:
-            status = 1 
-            print '[*]Alive: '+ip+':'+str(port)
-            self.update(status,ip,https,speed)
-        else:
-            print '[*]Dead: '+ip+':'+str(port)
-            self.update(status,ip,https,speed)
+        count = 3
+        while count:
+            try:
+                start = time.clock()
+                proxies = {"http":"http://%s:%s"%(ip,port),"https": "http://%s:%s"%(ip,port)}
+                r1 = requests.get("http://www.baidu.com/img/baidu_jgylogo1.gif", proxies=proxies,timeout=10)
+                if int(r1.headers['Content-Length']) == 708:
+                    proxy =1
+                    end = time.clock()
+                    speed = str(end-start)[:4]
+                    r2 = requests.get("https://www.baidu.com", proxies=proxies,timeout=10)
+                    if int(r2.status_code) == 200:
+                        https=1
+            except Exception,e:
+                pass
+            if proxy:
+                status = 1 
+                print '[*]Alive: '+ip+':'+str(port)
+                self.update(status,ip,https,speed)
+                break
+            else:
+                count = count-1
+                if count == 0:
+                    print '[*]Dead: '+ip+':'+str(port)
+                    self.update(status,ip,https,speed)
     def update(self,status,ip,https,speed):
         self.lock.acquire()
         try:
@@ -78,10 +83,7 @@ def main():
     threads = []
     conn = dbconnect.connection()
     cur = conn.cursor()
-    if  int(time.strftime("%H")) == 12:
-        sql = "select ipaddr,port from proxy"
-    else:
-        sql = "select ipaddr,port from proxy where status=1"
+    sql = "select ipaddr,port from proxy where status=1"
     cur.execute(sql)
     alldata = cur.fetchall()
     cur.close()

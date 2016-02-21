@@ -57,7 +57,8 @@ class CheckIp(threading.Thread):
                     https=1
         except Exception,e:
             pass
-        self.queue.task_done()    
+        finally:
+            self.queue.task_done()    
         if proxy:
             self.saveDate(ip,port,https,speed)
     def saveDate(self,ip,port,https,speed):
@@ -90,33 +91,30 @@ class GetIp(threading.Thread):
         self.portlist = portlist
         global singal,exitFlag
     def run(self):
-        try:
-            for i in range(self.startpage,self.endpage+1):
-                if self.queue.qsize()>10000:
-                    time.sleep(60*2)
-                print '[*]Get Page: %s' % (i)
-                self.getIpaddr(i)
-                if self.queue.qsize()>=1:
-                    if singal.is_set():
-                        pass
-                    else:
-                        singal.set()
-                if i == self.endpage:
-                    while 1:
-                        if self.queue.empty():
-                            exitFlag.clear()
-                            exitFlag.set()
-                            break
-                        time.sleep(30)
-        except Exception,e:
-            print e
+        for i in range(self.startpage,self.endpage+1):
+            if self.queue.qsize()>10000:
+                time.sleep(60*2)
+            self.getIpaddr(i)
+            if self.queue.qsize()>=1:
+                if singal.is_set():
+                    pass
+                else:
+                    singal.set()
+            if i == self.endpage:
+                while 1:
+                    if self.queue.empty():
+                        exitFlag.clear()
+                        exitFlag.set()
+                        break
+                    time.sleep(30)
     def getIpaddr(self,page):
-        query = {"query":self.key,"page":page}
-        if page % 118 == 0:
-            time.sleep(60*5)
         try:
+            query = {"query":self.key,"page":page}
+            if page % 118 == 0:
+                time.sleep(60*5)
             res = requests.post(API_URL+"ipv4",data=json.dumps(query),auth=(UID, SECRET),timeout=10)
             res_results = res.json()
+            print '[*]Get Page: %s' % (page)
             for i in res_results['results']:
                 for p in self.portlist:
                     self.queue.put(i['ip']+':'+str(p))
@@ -128,9 +126,8 @@ class GetIp(threading.Thread):
 def main():
     print '[*]Start'
     global singal,exitFlag
-    threads = []
     queue = Queue.Queue()
-    keyword = ['Squid','CCProxy','Tinyproxy','Wingate','Pound','Proxy','Mikrotik']
+    keyword = ['Mikrotik']
     portlist = [8080,80,3128]
     for key in keyword:
         exitFlag.clear()
@@ -141,22 +138,20 @@ def main():
             res = requests.post(API_URL+"ipv4",data=json.dumps(query),auth=(UID,SECRET),timeout=30)
             res_results = res.json()
             endpage = res_results['metadata']['pages']
+            print '[*]Total Page: %s' %(endpage)
+            startpage = 1
+            g = GetIp(queue,startpage,endpage,key,portlist)
+            g.start()
+            for i in range(100):
+                t = CheckIp(queue)
+                t.setDaemon(True)
+                t.start()
+            g.join()
+            queue.join()
+            print '[*]Keyword:%s Is Done' %(key)
+            time.sleep(60)
         except Exception,e:
-            print '[*]Keyword:%s Error %s' %(key,e)
-        print '[*]Total Page: %s' %(endpage)
-        startpage = 1
-        g = GetIp(queue,startpage,endpage,key,portlist)
-        g.start()
-        for i in range(150):
-            t = CheckIp(queue)
-            threads.append(t)
-            t.start()
-        g.join()
-        for t in threads:
-            t.join()
-        queue.join()
-        print '[*]Keyword:%s Is Done' %(key)
-        time.sleep(60)
+            print '[*]Keyword:%s Error %s' %(key)
     print '[*]All Done...'
 
 if __name__ == "__main__":
