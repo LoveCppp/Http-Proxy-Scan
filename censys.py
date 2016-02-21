@@ -127,7 +127,7 @@ def main():
     print '[*]Start'
     global singal,exitFlag
     queue = Queue.Queue()
-    keyword = ['Mikrotik']
+    keyword = ['Squid','CCProxy','Tinyproxy','Wingate','Pound','Proxy','Mikrotik']
     portlist = [8080,80,3128]
     for key in keyword:
         exitFlag.clear()
