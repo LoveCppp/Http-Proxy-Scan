@@ -151,7 +151,7 @@ def main():
             print '[*]Keyword:%s Is Done' %(key)
             time.sleep(60)
         except Exception,e:
-            print '[*]Keyword:%s Error %s' %(key)
+            print '[*]Keyword:%s Error' %(key)
     print '[*]All Done...'
 
 if __name__ == "__main__":
