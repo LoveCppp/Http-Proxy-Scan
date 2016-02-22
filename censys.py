@@ -52,9 +52,11 @@ class CheckIp(threading.Thread):
                 proxy =1
                 end = time.clock()
                 speed = str(end-start)[:4]
+                '''
                 r2 = requests.get("https://www.baidu.com", proxies=proxies,timeout=10)
                 if int(r2.status_code) == 200:
                     https=1
+                '''
         except Exception,e:
             pass
         finally:
