@@ -79,8 +79,8 @@ class checkProxy(threading.Thread):
 
 def main():
     print '[*]Start'
-    queue = Queue.Queue()
     threads = []
+    queue = Queue.Queue()
     conn = dbconnect.connection()
     cur = conn.cursor()
     sql = "select ipaddr,port from proxy where status=1"
@@ -90,14 +90,14 @@ def main():
     conn.close()
     for i in alldata:
         queue.put(i)
-    for j in range(50):
+    for j in range(100):
         t = checkProxy(queue)
         threads.append(t)
         t.start()
-    queue.join()
     for t in threads:
-        t.join(60)
-    print '[*]Done...'
+        t.join()
+    queue.join()
+    print '[*]All Done...'
 if __name__ == "__main__":
     main()
 

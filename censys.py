@@ -25,11 +25,10 @@ class CheckIp(threading.Thread):
         threading.Thread.__init__(self)
         self.queue = queue
         self.lock = threading.Lock()
-        global singal,exitFlag
+        global exitFlag
     def run(self):
         while not exitFlag.is_set():
             if self.queue.empty():
-                singal.wait()
                 time.sleep(30)
             else:
                 try:
@@ -91,35 +90,22 @@ class GetIp(threading.Thread):
         self.endpage = endpage
         self.key = key
         self.portlist = portlist
-        global singal,exitFlag
+        global exitFlag
     def run(self):
         for i in range(self.startpage,self.endpage+1):
-            if self.queue.qsize()>10000:
-                time.sleep(60*2)
             self.getIpaddr(i)
-            if self.queue.qsize()>=1:
-                if singal.is_set():
-                    pass
-                else:
-                    singal.set()
-            if i == self.endpage:
-                while 1:
-                    if self.queue.empty():
-                        exitFlag.clear()
-                        exitFlag.set()
-                        break
-                    time.sleep(30)
+
     def getIpaddr(self,page):
         try:
             query = {"query":self.key,"page":page}
             if page % 118 == 0:
                 time.sleep(60*5)
+            print '[*]Get Page: %s' % (page)
             res = requests.post(API_URL+"ipv4",data=json.dumps(query),auth=(UID, SECRET),timeout=10)
             res_results = res.json()
-            print '[*]Get Page: %s' % (page)
             for i in res_results['results']:
                 for p in self.portlist:
-                    self.queue.put(i['ip']+':'+str(p))
+                    self.queue.put((i['ip']+':'+str(p)),True)
             time.sleep(1)
         except Exception,e:
             print '[*]Get Page: %s Error' % (page)
@@ -127,13 +113,13 @@ class GetIp(threading.Thread):
   
 def main():
     print '[*]Start'
-    global singal,exitFlag
-    queue = Queue.Queue()
+    global exitFlag
+    threads = []
+    queue = Queue.Queue(10000)
     keyword = ['Squid','CCProxy','Tinyproxy','Wingate','Pound','Proxy','Mikrotik']
     portlist = [8080,80,3128]
     for key in keyword:
         exitFlag.clear()
-        singal.clear()
         print '[*]Use Keyword: %s' %(key)
         query = {"query":key,"page":1}
         try:
@@ -144,12 +130,13 @@ def main():
             startpage = 1
             g = GetIp(queue,startpage,endpage,key,portlist)
             g.start()
-            for i in range(100):
+            for i in range(200):
                 t = CheckIp(queue)
                 t.setDaemon(True)
                 t.start()
             g.join()
             queue.join()
+            exitFlag.set()
             print '[*]Keyword:%s Is Done' %(key)
             time.sleep(60)
         except Exception,e:
@@ -158,7 +145,7 @@ def main():
 
 if __name__ == "__main__":
     exitFlag = threading.Event()
-    singal = threading.Event()
     while 1:
         main()
         time.sleep(60*60*24)
+
